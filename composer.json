@@ -1,0 +1,70 @@
+{
+    "name": "trollbus/trollbus-bundle",
+    "description": "Integrate Trollbus with Symfony framework",
+    "keywords": [
+        "trollbus",
+        "message",
+        "bus",
+        "cqrs",
+        "command",
+        "query",
+        "event",
+        "symfony",
+        "bundle"
+    ],
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Kenny1911",
+            "email": "o-muzyka@mail.ru"
+        }
+    ],
+    "require": {
+        "php": "8.1.* || 8.2.* || 8.3.* || 8.4.*",
+        "psr/container": "^2.0",
+        "symfony/config": "^5.4 || ^6.0 || ^7.0",
+        "symfony/dependency-injection": "^5.4 || ^6.0 || ^7.0",
+        "symfony/http-kernel": "^5.4 || ^6.0 || ^7.0",
+        "trollbus/message": "self.version",
+        "trollbus/message-bus": "self.version"
+    },
+    "require-dev": {
+        "trollbus/doctrine-orm-bridge": "self.version"
+    },
+    "suggest": {
+        "trollbus/doctrine-orm-bridge": "Integration with Doctrine ORM"
+    },
+    "autoload": {
+        "psr-4": {
+            "Trollbus\\TrollbusBundle\\": "./"
+        }
+    },
+    "config": {
+        "lock": false,
+        "vendor-dir": "./../../var/TrollbusBundle/vendor"
+    },
+    "repositories": {
+        "trollbus/message": {
+            "type": "path",
+            "url": "./../Message",
+            "options": {
+                "version": "self.version"
+            }
+        },
+        "trollbus/message-bus": {
+            "type": "path",
+            "url": "./../MessageBus",
+            "options": {
+                "version": "self.version"
+            }
+        },
+        "trollbus/doctrine-orm-bridge": {
+            "type": "path",
+            "url": "./../DoctrineORMBridge",
+            "options": {
+                "version": "self.version"
+            }
+        }
+    }
+}
