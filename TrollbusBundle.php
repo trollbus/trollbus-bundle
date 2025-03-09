@@ -154,7 +154,7 @@ final class TrollbusBundle extends AbstractBundle
     {
         $config
             ->arrayNode('logger')
-                ->canBeEnabled()
+                ->canBeDisabled()
                 ->children()
                     ->scalarNode('logger')
                         ->defaultValue('logger');
