@@ -65,6 +65,7 @@ final class MessageBusConfigurator
     /**
      * @param class-string<Message> $message
      * @param non-empty-string $service
+     * @param non-empty-string $method
      * @param non-empty-string|null $handlerId
      * @param list<non-empty-string> $middlewares
      */
@@ -89,7 +90,14 @@ final class MessageBusConfigurator
 
     /**
      * @param class-string<Message> $message
+     * @param class-string $entityClass
+     * @param non-empty-string $handlerMethod
      * @param non-empty-array<non-empty-string, non-empty-string> $findBy
+     * @param non-empty-string|null $factoryMethod
+     * @param non-empty-string $entityFinder
+     * @param non-empty-string $entitySaver
+     * @param non-empty-string $criteriaResolver
+     * @param non-empty-string|null $handlerId
      * @param list<non-empty-string> $middlewares
      */
     public function entityHandler(
