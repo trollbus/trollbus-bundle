@@ -27,7 +27,7 @@ use Trollbus\MessageBus\MessageId\RandomMessageIdGenerator;
 use Trollbus\MessageBus\Transaction\WrapInTransactionMiddleware;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\DebugHandlerPass;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\HandlerRegistryPass;
-use Trollbus\TrollbusBundle\DependencyInjection\MessageBusConfigurator;
+use Trollbus\TrollbusBundle\DependencyInjection\MessageBusConfiguration;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
 
@@ -112,10 +112,10 @@ final class TrollbusBundle extends AbstractBundle
             ->services()
             ->set(MessageBus::class)
                 ->args([
-                    service(MessageBusConfigurator::HANDLER_REGISTRY),
-                    tagged_iterator(MessageBusConfigurator::MIDDLEWARE_TAG),
+                    service(MessageBusConfiguration::HANDLER_REGISTRY),
+                    tagged_iterator(MessageBusConfiguration::MIDDLEWARE_TAG),
                 ])
-            ->alias(MessageBusConfigurator::MESSAGE_BUS, MessageBus::class)
+            ->alias(MessageBusConfiguration::MESSAGE_BUS, MessageBus::class)
                 ->public();
     }
 
@@ -146,7 +146,7 @@ final class TrollbusBundle extends AbstractBundle
                 ->args([
                     isset($config['created_at']['clock']) ? service($config['created_at']['clock']) : null,
                 ])
-                ->tag(MessageBusConfigurator::MIDDLEWARE_TAG, ['priority' => 1000]);
+                ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => 1000]);
     }
 
     /**
@@ -176,7 +176,7 @@ final class TrollbusBundle extends AbstractBundle
                 ->args([
                     service($config['logger']['logger']),
                 ])
-                ->tag(MessageBusConfigurator::MIDDLEWARE_TAG, ['priority' => 900]);
+                ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => 900]);
     }
 
     /**
@@ -189,7 +189,7 @@ final class TrollbusBundle extends AbstractBundle
                 ->canBeDisabled()
                 ->children()
                     ->scalarNode('generator')
-                        ->defaultValue(MessageBusConfigurator::DEFAULT_MESSAGE_ID_GENERATOR);
+                        ->defaultValue(MessageBusConfiguration::DEFAULT_MESSAGE_ID_GENERATOR);
     }
 
     /**
@@ -203,8 +203,8 @@ final class TrollbusBundle extends AbstractBundle
 
         $services->set(RandomMessageIdGenerator::class);
 
-        if (!$builder->has(MessageBusConfigurator::DEFAULT_MESSAGE_ID_GENERATOR)) {
-            $services->alias(MessageBusConfigurator::DEFAULT_MESSAGE_ID_GENERATOR, RandomMessageIdGenerator::class);
+        if (!$builder->has(MessageBusConfiguration::DEFAULT_MESSAGE_ID_GENERATOR)) {
+            $services->alias(MessageBusConfiguration::DEFAULT_MESSAGE_ID_GENERATOR, RandomMessageIdGenerator::class);
         }
 
         $services
@@ -212,13 +212,13 @@ final class TrollbusBundle extends AbstractBundle
                 ->args([
                     service($config['message_id']['generator']),
                 ])
-                ->tag(MessageBusConfigurator::MIDDLEWARE_TAG, ['priority' => 810])
+                ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => 810])
 
             ->set(CorrelationIdMiddleware::class)
-                ->tag(MessageBusConfigurator::MIDDLEWARE_TAG, ['priority' => 800])
+                ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => 800])
 
             ->set(CausationIdMiddleware::class)
-                ->tag(MessageBusConfigurator::MIDDLEWARE_TAG, ['priority' => 800]);
+                ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => 800]);
     }
 
     /**
@@ -231,7 +231,7 @@ final class TrollbusBundle extends AbstractBundle
             ->canBeEnabled()
                 ->children()
                     ->scalarNode('transaction_provider')
-                        ->defaultValue(MessageBusConfigurator::DEFAULT_TRANSACTION_PROVIDER);
+                        ->defaultValue(MessageBusConfiguration::DEFAULT_TRANSACTION_PROVIDER);
     }
 
     /**
@@ -248,7 +248,7 @@ final class TrollbusBundle extends AbstractBundle
                 ->args([
                     service($config['transaction']['transaction_provider']),
                 ])
-                ->tag(MessageBusConfigurator::MIDDLEWARE_TAG, ['priority' => 700]);
+                ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => 700]);
     }
 
     /**
@@ -261,13 +261,13 @@ final class TrollbusBundle extends AbstractBundle
             ->canBeEnabled()
             ->children()
                 ->scalarNode('entity_finder')
-                    ->defaultValue(MessageBusConfigurator::DEFAULT_ENTITY_FINDER)
+                    ->defaultValue(MessageBusConfiguration::DEFAULT_ENTITY_FINDER)
                     ->end()
                 ->scalarNode('entity_saver')
-                    ->defaultValue(MessageBusConfigurator::DEFAULT_ENTITY_SAVER)
+                    ->defaultValue(MessageBusConfiguration::DEFAULT_ENTITY_SAVER)
                     ->end()
                 ->scalarNode('criteria_resolver')
-                    ->defaultValue(MessageBusConfigurator::DEFAULT_CRITERIA_RESOLVER);
+                    ->defaultValue(MessageBusConfiguration::DEFAULT_CRITERIA_RESOLVER);
     }
 
     /**
@@ -279,20 +279,20 @@ final class TrollbusBundle extends AbstractBundle
             return;
         }
 
-        if (MessageBusConfigurator::DEFAULT_ENTITY_FINDER !== $config['entity_handler']['entity_finder']) {
-            $services->alias(MessageBusConfigurator::DEFAULT_ENTITY_FINDER, $config['entity_handler']['entity_finder']);
+        if (MessageBusConfiguration::DEFAULT_ENTITY_FINDER !== $config['entity_handler']['entity_finder']) {
+            $services->alias(MessageBusConfiguration::DEFAULT_ENTITY_FINDER, $config['entity_handler']['entity_finder']);
         }
 
-        if (MessageBusConfigurator::DEFAULT_ENTITY_SAVER !== $config['entity_handler']['entity_saver']) {
-            $services->alias(MessageBusConfigurator::DEFAULT_ENTITY_SAVER, $config['entity_handler']['entity_saver']);
+        if (MessageBusConfiguration::DEFAULT_ENTITY_SAVER !== $config['entity_handler']['entity_saver']) {
+            $services->alias(MessageBusConfiguration::DEFAULT_ENTITY_SAVER, $config['entity_handler']['entity_saver']);
         }
 
         $services->set(PropertyCriteriaResolver::class);
 
-        if (MessageBusConfigurator::DEFAULT_CRITERIA_RESOLVER === $config['entity_handler']['criteria_resolver']) {
-            $services->alias(MessageBusConfigurator::DEFAULT_CRITERIA_RESOLVER, PropertyCriteriaResolver::class);
+        if (MessageBusConfiguration::DEFAULT_CRITERIA_RESOLVER === $config['entity_handler']['criteria_resolver']) {
+            $services->alias(MessageBusConfiguration::DEFAULT_CRITERIA_RESOLVER, PropertyCriteriaResolver::class);
         } else {
-            $services->alias(MessageBusConfigurator::DEFAULT_CRITERIA_RESOLVER, $config['entity_handler']['criteria_resolver']);
+            $services->alias(MessageBusConfiguration::DEFAULT_CRITERIA_RESOLVER, $config['entity_handler']['criteria_resolver']);
         }
     }
 
@@ -348,16 +348,16 @@ final class TrollbusBundle extends AbstractBundle
                     $config['doctrine_orm_bridge']['entity_saver_flush'],
                 ]);
 
-        if (!$builder->has(MessageBusConfigurator::DEFAULT_TRANSACTION_PROVIDER)) {
-            $services->alias(MessageBusConfigurator::DEFAULT_TRANSACTION_PROVIDER, DoctrineTransactionProvider::class);
+        if (!$builder->has(MessageBusConfiguration::DEFAULT_TRANSACTION_PROVIDER)) {
+            $services->alias(MessageBusConfiguration::DEFAULT_TRANSACTION_PROVIDER, DoctrineTransactionProvider::class);
         }
 
-        if (!$builder->has(MessageBusConfigurator::DEFAULT_ENTITY_FINDER)) {
-            $services->alias(MessageBusConfigurator::DEFAULT_ENTITY_FINDER, DoctrineEntityFinder::class);
+        if (!$builder->has(MessageBusConfiguration::DEFAULT_ENTITY_FINDER)) {
+            $services->alias(MessageBusConfiguration::DEFAULT_ENTITY_FINDER, DoctrineEntityFinder::class);
         }
 
-        if (!$builder->has(MessageBusConfigurator::DEFAULT_ENTITY_SAVER)) {
-            $services->alias(MessageBusConfigurator::DEFAULT_ENTITY_SAVER, DoctrineEntitySaver::class);
+        if (!$builder->has(MessageBusConfiguration::DEFAULT_ENTITY_SAVER)) {
+            $services->alias(MessageBusConfiguration::DEFAULT_ENTITY_SAVER, DoctrineEntitySaver::class);
         }
 
         if ($config['doctrine_orm_bridge']['flusher']) {

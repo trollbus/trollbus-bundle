@@ -14,19 +14,60 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 final class MessageBusConfigurator
 {
-    public const MESSAGE_BUS = 'trollbus';
-    public const HANDLER_REGISTRY = 'trollbus.handler_registry';
-    public const HANDLER_TAG = 'trollbus.handler';
-    public const HANDLER_TAG_MESSAGE = 'message';
-    public const HANDLER_TAG_MIDDLEWARES = 'middlewares';
-    public const MIDDLEWARE_TAG = 'trollbus.middleware';
-    public const DEFAULT_MESSAGE_ID_GENERATOR = 'trollbus.message_id.default_generator';
-    public const DEFAULT_TRANSACTION_PROVIDER = 'trollbus.transaction.default_transaction_provider';
-    public const DEFAULT_ENTITY_FINDER = 'trollbus.entity_handler.default_entity_finder';
-    public const DEFAULT_ENTITY_SAVER = 'trollbus.entity_handler.default_entity_saver';
-    public const DEFAULT_CRITERIA_RESOLVER = 'trollbus.entity_handler.default_criteria_resolver';
+    /**
+     * @deprecated Use {@see MessageBusConfiguration::MESSAGE_BUS}, will be remove in `0.3.0`.
+     */
+    public const MESSAGE_BUS = MessageBusConfiguration::MESSAGE_BUS;
 
-    private static int $counter = 0;
+    /**
+     * @deprecated Use {@see MessageBusConfiguration::HANDLER_REGISTRY}, will be remove in `0.3.0`.
+     */
+    public const HANDLER_REGISTRY = MessageBusConfiguration::HANDLER_REGISTRY;
+
+    /**
+     * @deprecated Use {@see MessageBusConfiguration::HANDLER_TAG}, will be remove in `0.3.0`.
+     */
+    public const HANDLER_TAG = MessageBusConfiguration::HANDLER_TAG;
+
+    /**
+     * @deprecated Use {@see MessageBusConfiguration::HANDLER_TAG_MESSAGE}, will be remove in `0.3.0`.
+     */
+    public const HANDLER_TAG_MESSAGE = MessageBusConfiguration::HANDLER_TAG_MESSAGE;
+
+    /**
+     * @deprecated Use {@see MessageBusConfiguration::HANDLER_TAG_MIDDLEWARES}, will be remove in `0.3.0`.
+     */
+    public const HANDLER_TAG_MIDDLEWARES = MessageBusConfiguration::HANDLER_TAG_MIDDLEWARES;
+
+    /**
+     * @deprecated Use {@see MessageBusConfiguration::MIDDLEWARE_TAG}, will be remove in `0.3.0`.
+     */
+    public const MIDDLEWARE_TAG = MessageBusConfiguration::MIDDLEWARE_TAG;
+
+    /**
+     * @deprecated Use {@see MessageBusConfiguration::DEFAULT_MESSAGE_ID_GENERATOR}, will be remove in `0.3.0`.
+     */
+    public const DEFAULT_MESSAGE_ID_GENERATOR = MessageBusConfiguration::DEFAULT_MESSAGE_ID_GENERATOR;
+
+    /**
+     * @deprecated Use {@see MessageBusConfiguration::DEFAULT_TRANSACTION_PROVIDER}, will be remove in `0.3.0`.
+     */
+    public const DEFAULT_TRANSACTION_PROVIDER = MessageBusConfiguration::DEFAULT_TRANSACTION_PROVIDER;
+
+    /**
+     * @deprecated Use {@see MessageBusConfiguration::DEFAULT_ENTITY_FINDER}, will be remove in `0.3.0`.
+     */
+    public const DEFAULT_ENTITY_FINDER = MessageBusConfiguration::DEFAULT_ENTITY_FINDER;
+
+    /**
+     * @deprecated Use {@see MessageBusConfiguration::DEFAULT_ENTITY_SAVER}, will be remove in `0.3.0`.
+     */
+    public const DEFAULT_ENTITY_SAVER = MessageBusConfiguration::DEFAULT_ENTITY_SAVER;
+
+    /**
+     * @deprecated Use {@see MessageBusConfiguration::DEFAULT_CRITERIA_RESOLVER}, will be remove in `0.3.0`.
+     */
+    public const DEFAULT_CRITERIA_RESOLVER = MessageBusConfiguration::DEFAULT_CRITERIA_RESOLVER;
 
     public function __construct(
         private readonly ContainerConfigurator $di,
@@ -45,7 +86,7 @@ final class MessageBusConfigurator
     public function handler(string $message, string $service, array $middlewares = []): self
     {
         if (\count($middlewares) > 0) {
-            $decoratedService = self::nextHandlerService();
+            $decoratedService = MessageBusConfiguration::nextHandlerService();
             $this->di
                 ->services()
                 ->set($decoratedService, HandlerWithMiddlewares::class)
@@ -60,7 +101,7 @@ final class MessageBusConfigurator
         $this->di
             ->services()
             ->get($service)
-                ->tag(self::HANDLER_TAG, [self::HANDLER_TAG_MESSAGE => $message]);
+                ->tag(MessageBusConfiguration::HANDLER_TAG, [MessageBusConfiguration::HANDLER_TAG_MESSAGE => $message]);
 
         return $this;
     }
@@ -79,7 +120,7 @@ final class MessageBusConfigurator
         ?string $handlerId = null,
         array $middlewares = [],
     ): self {
-        $handlerService = self::nextHandlerService();
+        $handlerService = MessageBusConfiguration::nextHandlerService();
         $this->di
             ->services()
             ->set($handlerService, CallableHandler::class)
@@ -109,13 +150,13 @@ final class MessageBusConfigurator
         string $handlerMethod,
         array $findBy,
         ?string $factoryMethod = null,
-        string $entityFinder = self::DEFAULT_ENTITY_FINDER,
-        string $entitySaver = self::DEFAULT_ENTITY_SAVER,
-        string $criteriaResolver = self::DEFAULT_CRITERIA_RESOLVER,
+        string $entityFinder = MessageBusConfiguration::DEFAULT_ENTITY_FINDER,
+        string $entitySaver = MessageBusConfiguration::DEFAULT_ENTITY_SAVER,
+        string $criteriaResolver = MessageBusConfiguration::DEFAULT_CRITERIA_RESOLVER,
         ?string $handlerId = null,
         array $middlewares = [],
     ): self {
-        $handlerService = self::nextHandlerService();
+        $handlerService = MessageBusConfiguration::nextHandlerService();
         $this->di
             ->services()
             ->set($handlerService, EntityHandler::class)
@@ -146,11 +187,11 @@ final class MessageBusConfigurator
         string $message,
         string $entityClass,
         string $handlerMethod,
-        string $entitySaver = self::DEFAULT_ENTITY_SAVER,
+        string $entitySaver = MessageBusConfiguration::DEFAULT_ENTITY_SAVER,
         ?string $handlerId = null,
         array $middlewares = [],
     ): self {
-        $handlerService = self::nextHandlerService();
+        $handlerService = MessageBusConfiguration::nextHandlerService();
         $this->di
             ->services()
             ->set($handlerService, EntityFactoryHandler::class)
@@ -172,19 +213,18 @@ final class MessageBusConfigurator
         $this->di
             ->services()
             ->get($service)
-                ->tag(self::MIDDLEWARE_TAG, ['priority' => $priority]);
+                ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => $priority]);
 
         return $this;
     }
 
     /**
      * @return non-empty-string
+     *
+     * @deprecated Use {@see MessageBusConfiguration::nextHandlerService()}, will be remove in `0.3.0`.
      */
     public static function nextHandlerService(): string
     {
-        $serviceId = \sprintf('trollbus.handler.%s', self::$counter);
-        ++self::$counter;
-
-        return $serviceId;
+        return MessageBusConfiguration::nextHandlerService();
     }
 }

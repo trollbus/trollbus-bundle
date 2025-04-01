@@ -13,7 +13,7 @@ use Symfony\Component\DependencyInjection\Reference;
 use Trollbus\Message\Message;
 use Trollbus\MessageBus\Middleware\HandlerWithMiddlewares;
 use Trollbus\TrollbusBundle\Command\DebugCommand;
-use Trollbus\TrollbusBundle\DependencyInjection\MessageBusConfigurator;
+use Trollbus\TrollbusBundle\DependencyInjection\MessageBusConfiguration;
 
 final class DebugHandlerPass implements CompilerPassInterface
 {
@@ -32,13 +32,13 @@ final class DebugHandlerPass implements CompilerPassInterface
         /** @var array<non-empty-string, list<non-empty-string>> $handlerServiceIdMiddlewares */
         $handlerServiceIdMiddlewares = [];
 
-        foreach ($container->findTaggedServiceIds(MessageBusConfigurator::HANDLER_TAG) as $serviceId => $tags) {
+        foreach ($container->findTaggedServiceIds(MessageBusConfiguration::HANDLER_TAG) as $serviceId => $tags) {
             $handlerServiceIds[] = $serviceId;
 
             /** @var array $tag */
             foreach ($tags as $tag) {
                 /** @var class-string<Message> $messageClass */
-                $messageClass = (string) ($tag[MessageBusConfigurator::HANDLER_TAG_MESSAGE] ?? '');
+                $messageClass = (string) ($tag[MessageBusConfiguration::HANDLER_TAG_MESSAGE] ?? '');
 
                 $messageClassToHandlerServiceIds[$messageClass][] = $serviceId;
             }
@@ -70,7 +70,7 @@ final class DebugHandlerPass implements CompilerPassInterface
         $middlewares = [];
 
         /** @var non-empty-string $serviceId */
-        foreach ($container->findTaggedServiceIds(MessageBusConfigurator::MIDDLEWARE_TAG) as $serviceId => $tags) {
+        foreach ($container->findTaggedServiceIds(MessageBusConfiguration::MIDDLEWARE_TAG) as $serviceId => $tags) {
             $middlewares[] = $serviceId;
         }
 
