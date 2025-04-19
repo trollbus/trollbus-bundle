@@ -6,6 +6,7 @@ namespace Trollbus\TrollbusBundle\DependencyInjection;
 
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Trollbus\Message\Message;
+use Trollbus\MessageBus\EntityHandler\EntityFactoryHandler;
 use Trollbus\MessageBus\EntityHandler\EntityHandler;
 use Trollbus\MessageBus\Handler\CallableHandler;
 use Trollbus\MessageBus\Middleware\HandlerWithMiddlewares;
@@ -125,6 +126,37 @@ final class MessageBusConfigurator
                     $handlerMethod,
                     $findBy,
                     $factoryMethod,
+                ]);
+
+        return $this->handler($message, $handlerService, $middlewares);
+    }
+
+    /**
+     * @param class-string<Message<void>> $message
+     * @param class-string $entityClass
+     * @param non-empty-string $handlerMethod static handler method, that handle `Trollbus\Message\Message<void>`
+     *                                        message and return entity instance
+     * @param non-empty-string $entitySaver
+     * @param non-empty-string|null $handlerId
+     * @param list<non-empty-string> $middlewares
+     */
+    public function entityFactoryHandler(
+        string $message,
+        string $entityClass,
+        string $handlerMethod,
+        string $entitySaver = self::DEFAULT_ENTITY_SAVER,
+        ?string $handlerId = null,
+        array $middlewares = [],
+    ): self {
+        $handlerService = self::nextHandlerService();
+        $this->di
+            ->services()
+            ->set($handlerService, EntityFactoryHandler::class)
+                ->args([
+                    $handlerId ?? $handlerService,
+                    service($entitySaver),
+                    $entityClass,
+                    $handlerMethod,
                 ]);
 
         return $this->handler($message, $handlerService, $middlewares);
