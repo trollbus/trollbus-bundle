@@ -25,6 +25,7 @@ use Trollbus\MessageBus\MessageId\CorrelationIdMiddleware;
 use Trollbus\MessageBus\MessageId\MessageIdMiddleware;
 use Trollbus\MessageBus\MessageId\RandomMessageIdGenerator;
 use Trollbus\MessageBus\Transaction\WrapInTransactionMiddleware;
+use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\DebugHandlerPass;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\HandlerRegistryPass;
 use Trollbus\TrollbusBundle\DependencyInjection\MessageBusConfigurator;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
@@ -71,6 +72,7 @@ final class TrollbusBundle extends AbstractBundle
     public function build(ContainerBuilder $container): void
     {
         $container->addCompilerPass(new HandlerRegistryPass());
+        $container->addCompilerPass(new DebugHandlerPass());
     }
 
     /**
