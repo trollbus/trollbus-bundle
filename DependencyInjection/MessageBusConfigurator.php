@@ -45,14 +45,16 @@ final class MessageBusConfigurator
     public function handler(string $message, string $service, array $middlewares = []): self
     {
         if (\count($middlewares) > 0) {
+            $decoratedService = self::nextHandlerService();
             $this->di
                 ->services()
-                ->set(self::nextHandlerService(), HandlerWithMiddlewares::class)
+                ->set($decoratedService, HandlerWithMiddlewares::class)
                     ->decorate($service)
                     ->args([
                         service('.inner'),
                         array_map(static fn(string $m) => service($m), $middlewares),
                     ]);
+            $service = $decoratedService;
         }
 
         $this->di
