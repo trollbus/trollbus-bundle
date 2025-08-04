@@ -174,7 +174,7 @@ final class TrollbusBundle extends AbstractBundle
                 ->args([
                     service($config['logger']['logger']),
                 ])
-                ->tag(MessageBusConfigurator::MIDDLEWARE_TAG, ['priority' => 900]);
+                ->tag(MessageBusConfigurator::MIDDLEWARE_TAG, ['priority' => 500]);
     }
 
     /**
@@ -246,7 +246,7 @@ final class TrollbusBundle extends AbstractBundle
                 ->args([
                     service($config['transaction']['transaction_provider']),
                 ])
-                ->tag(MessageBusConfigurator::MIDDLEWARE_TAG, ['priority' => 700]);
+                ->tag(MessageBusConfigurator::MIDDLEWARE_TAG, ['priority' => 400]);
     }
 
     /**
@@ -365,7 +365,7 @@ final class TrollbusBundle extends AbstractBundle
                     service($config['doctrine_orm_bridge']['manager_registry']),
                     $config['doctrine_orm_bridge']['manager'],
                 ])
-                ->tag('trollbus.middleware', ['priority' => 500]);
+                ->tag('trollbus.middleware', ['priority' => 300]);
         }
     }
 }
