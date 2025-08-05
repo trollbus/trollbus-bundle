@@ -256,6 +256,7 @@ final class TrollbusBundle extends AbstractBundle
      */
     private function configureEntityHandler(NodeBuilder $config): void
     {
+        /** @psalm-suppress PossiblyNullReference In symfony 6.4 end() return nullable value */
         $config
             ->arrayNode('entity_handler')
             ->canBeEnabled()
@@ -301,6 +302,7 @@ final class TrollbusBundle extends AbstractBundle
      */
     private function configureDoctrineOrmBridge(NodeBuilder $config): void
     {
+        /** @psalm-suppress PossiblyNullReference In symfony 6.4 end() return nullable value */
         $config
             ->arrayNode('doctrine_orm_bridge')
                 ->canBeEnabled()
