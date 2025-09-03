@@ -338,6 +338,7 @@ final class TrollbusBundle extends AbstractBundle
 
         $services
             ->set(DoctrineTransactionProvider::class)
+                ->factory([DoctrineTransactionProvider::class, 'fromEntityManagerName'])
                 ->args([
                     service($config['doctrine_orm_bridge']['manager_registry']),
                     $config['doctrine_orm_bridge']['manager'],
