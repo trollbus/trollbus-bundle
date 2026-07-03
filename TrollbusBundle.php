@@ -97,20 +97,21 @@ final class TrollbusBundle extends AbstractBundle
     /**
      * @psalm-param Config $config
      * @psalm-suppress MoreSpecificImplementedParamType
+     * @psalm-suppress ParamNameMismatch In symfony 7.4.9 parameters was renamed. See more: https://github.com/symfony/symfony/commit/a0e2df8273003b8a1437263a7cad6d61295fa15b
      */
     #[\Override]
-    public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
+    public function loadExtension(array $config, ContainerConfigurator $configurator, ContainerBuilder $container): void
     {
-        $services = $container->services();
+        $services = $configurator->services();
 
         $this->loadCreatedAt($config, $services);
         $this->loadLogger($config, $services);
-        $this->loadMessageId($config, $services, $builder);
+        $this->loadMessageId($config, $services, $container);
         $this->loadTransaction($config, $services);
         $this->loadEntityHandler($config, $services);
-        $this->loadDoctrineOrmBridge($config, $services, $builder);
+        $this->loadDoctrineOrmBridge($config, $services, $container);
 
-        $container
+        $configurator
             ->services()
             ->set(MessageBus::class)
                 ->args([
@@ -148,7 +149,7 @@ final class TrollbusBundle extends AbstractBundle
                 ->args([
                     isset($config['created_at']['clock']) ? service($config['created_at']['clock']) : null,
                 ])
-                ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => 1000]);
+                ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => 1_000]);
     }
 
     /**
