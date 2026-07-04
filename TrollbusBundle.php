@@ -127,12 +127,20 @@ final class TrollbusBundle extends AbstractBundle
      */
     private function configureCreatedAt(NodeBuilder $config): void
     {
-        $config
+        $node = $config
             ->arrayNode('created_at')
-                ->canBeDisabled()
-                ->children()
-                    ->scalarNode('clock')
-                        ->defaultNull();
+                ->canBeDisabled();
+
+        $clockNode = $node
+            ->children()
+                ->scalarNode('clock');
+
+        // Check, that symfony/clock installed
+        if (interface_exists('Symfony\Component\Clock\ClockInterface')) {
+            $clockNode->defaultValue('clock');
+        } else {
+            $clockNode->defaultNull();
+        }
     }
 
     /**
