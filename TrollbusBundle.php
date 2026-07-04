@@ -11,12 +11,14 @@ use Symfony\Component\DependencyInjection\Exception\LogicException;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ServicesConfigurator;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
-use Trollbus\DoctrineORMBridge\DoctrineORMBridge;
 use Trollbus\DoctrineORMBridge\EntityHandler\DoctrineEntityFinder;
 use Trollbus\DoctrineORMBridge\EntityHandler\DoctrineEntitySaver;
 use Trollbus\DoctrineORMBridge\Flusher\FlusherMiddleware;
 use Trollbus\DoctrineORMBridge\Transaction\DoctrineTransactionProvider;
 use Trollbus\MessageBus\CreatedAt\CreatedAtMiddleware;
+use Trollbus\MessageBus\EntityHandler\CriteriaResolver;
+use Trollbus\MessageBus\EntityHandler\EntityFinder;
+use Trollbus\MessageBus\EntityHandler\EntitySaver;
 use Trollbus\MessageBus\EntityHandler\PropertyCriteriaResolver;
 use Trollbus\MessageBus\Logging\LogMiddleware;
 use Trollbus\MessageBus\MessageBus;
@@ -58,7 +60,7 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_it
  *         entity_saver: non-empty-string,
  *         criteria_resolver: non-empty-string
  *     },
- *     doctrine_orm_bridge: array{
+ *     doctrine_orm_bridge?: array{
  *         enabled: bool,
  *         manager_registry: non-empty-string,
  *         manager: non-empty-string|null,
@@ -255,12 +257,22 @@ final class TrollbusBundle extends AbstractBundle
      */
     private function configureTransaction(NodeBuilder $config): void
     {
-        $config
-            ->arrayNode('transaction')
-            ->canBeEnabled()
-                ->children()
-                    ->scalarNode('transaction_provider')
-                        ->defaultValue(MessageBusConfiguration::DEFAULT_TRANSACTION_PROVIDER);
+        $isDoctrineOrmBridgeInstalled = $this->isDoctrineOrmBridgeInstalled();
+
+        $node = $config->arrayNode('transaction');
+
+        if ($this->isDoctrineOrmBridgeInstalled()) {
+            $node->canBeDisabled();
+        } else {
+            $node->canBeEnabled();
+        }
+
+        $transactionProviderNode = $node->children()
+            ->scalarNode('transaction_provider');
+
+        if ($isDoctrineOrmBridgeInstalled) {
+            $transactionProviderNode->defaultValue(DoctrineTransactionProvider::class);
+        }
     }
 
     /**
@@ -285,19 +297,25 @@ final class TrollbusBundle extends AbstractBundle
      */
     private function configureEntityHandler(NodeBuilder $config): void
     {
+        $isDoctrineOrmBridgeInstalled = $this->isDoctrineOrmBridgeInstalled();
         /** @psalm-suppress PossiblyNullReference In symfony 6.4 end() return nullable value */
-        $config
-            ->arrayNode('entity_handler')
-            ->canBeEnabled()
-            ->children()
-                ->scalarNode('entity_finder')
-                    ->defaultValue(MessageBusConfiguration::DEFAULT_ENTITY_FINDER)
-                    ->end()
-                ->scalarNode('entity_saver')
-                    ->defaultValue(MessageBusConfiguration::DEFAULT_ENTITY_SAVER)
-                    ->end()
-                ->scalarNode('criteria_resolver')
-                    ->defaultValue(MessageBusConfiguration::DEFAULT_CRITERIA_RESOLVER);
+        $node = $config->arrayNode('entity_handler');
+
+        if ($isDoctrineOrmBridgeInstalled) {
+            $node->canBeDisabled();
+        } else {
+            $node->canBeEnabled();
+        }
+
+        $entityFinderNode = $node->children()->scalarNode('entity_finder');
+        $entitySaverNode = $node->children()->scalarNode('entity_saver');
+
+        if ($isDoctrineOrmBridgeInstalled) {
+            $entityFinderNode->defaultValue(DoctrineEntityFinder::class);
+            $entitySaverNode->defaultValue(DoctrineEntitySaver::class);
+        }
+
+        $node->children()->scalarNode('criteria_resolver')->defaultValue(PropertyCriteriaResolver::class);
     }
 
     /**
@@ -309,21 +327,11 @@ final class TrollbusBundle extends AbstractBundle
             return;
         }
 
-        if (MessageBusConfiguration::DEFAULT_ENTITY_FINDER !== $config['entity_handler']['entity_finder']) {
-            $services->alias(MessageBusConfiguration::DEFAULT_ENTITY_FINDER, $config['entity_handler']['entity_finder']);
-        }
-
-        if (MessageBusConfiguration::DEFAULT_ENTITY_SAVER !== $config['entity_handler']['entity_saver']) {
-            $services->alias(MessageBusConfiguration::DEFAULT_ENTITY_SAVER, $config['entity_handler']['entity_saver']);
-        }
-
         $services->set(PropertyCriteriaResolver::class);
 
-        if (MessageBusConfiguration::DEFAULT_CRITERIA_RESOLVER === $config['entity_handler']['criteria_resolver']) {
-            $services->alias(MessageBusConfiguration::DEFAULT_CRITERIA_RESOLVER, PropertyCriteriaResolver::class);
-        } else {
-            $services->alias(MessageBusConfiguration::DEFAULT_CRITERIA_RESOLVER, $config['entity_handler']['criteria_resolver']);
-        }
+        $services->alias(EntityFinder::class, $config['entity_handler']['entity_finder']);
+        $services->alias(EntitySaver::class, $config['entity_handler']['entity_saver']);
+        $services->alias(CriteriaResolver::class, $config['entity_handler']['criteria_resolver']);
     }
 
     /**
@@ -331,10 +339,15 @@ final class TrollbusBundle extends AbstractBundle
      */
     private function configureDoctrineOrmBridge(NodeBuilder $config): void
     {
+        // Skip, if trollbus/doctrine-orm-bridge not installed
+        if (false === $this->isDoctrineOrmBridgeInstalled()) {
+            return;
+        }
+
         /** @psalm-suppress PossiblyNullReference In symfony 6.4 end() return nullable value */
         $config
             ->arrayNode('doctrine_orm_bridge')
-                ->canBeEnabled()
+                ->canBeDisabled()
                 ->children()
                     ->scalarNode('manager_registry')
                         ->cannotBeEmpty()
@@ -344,7 +357,7 @@ final class TrollbusBundle extends AbstractBundle
                         ->defaultNull()
                         ->end()
                     ->booleanNode('entity_saver_flush')
-                        ->defaultFalse()
+                        ->defaultTrue()
                         ->end()
                     ->booleanNode('flusher')
                         ->defaultTrue();
@@ -355,11 +368,15 @@ final class TrollbusBundle extends AbstractBundle
      */
     private function loadDoctrineOrmBridge(array &$config, ServicesConfigurator $services, ContainerBuilder $builder): void
     {
+        if (false === isset($config['doctrine_orm_bridge'])) {
+            return;
+        }
+
         if (false === $config['doctrine_orm_bridge']['enabled']) {
             return;
         }
 
-        if (false === class_exists(DoctrineORMBridge::class)) {
+        if (false === $this->isDoctrineOrmBridgeInstalled()) {
             throw new LogicException('Package "trollbus/doctrine-orm-bridge" is not installed.');
         }
 
@@ -380,18 +397,6 @@ final class TrollbusBundle extends AbstractBundle
                     $config['doctrine_orm_bridge']['entity_saver_flush'],
                 ]);
 
-        if (!$builder->has(MessageBusConfiguration::DEFAULT_TRANSACTION_PROVIDER)) {
-            $services->alias(MessageBusConfiguration::DEFAULT_TRANSACTION_PROVIDER, DoctrineTransactionProvider::class);
-        }
-
-        if (!$builder->has(MessageBusConfiguration::DEFAULT_ENTITY_FINDER)) {
-            $services->alias(MessageBusConfiguration::DEFAULT_ENTITY_FINDER, DoctrineEntityFinder::class);
-        }
-
-        if (!$builder->has(MessageBusConfiguration::DEFAULT_ENTITY_SAVER)) {
-            $services->alias(MessageBusConfiguration::DEFAULT_ENTITY_SAVER, DoctrineEntitySaver::class);
-        }
-
         if ($config['doctrine_orm_bridge']['flusher']) {
             $services
                 ->set(FlusherMiddleware::class)
@@ -401,5 +406,10 @@ final class TrollbusBundle extends AbstractBundle
                 ])
                 ->tag('trollbus.middleware', ['priority' => 300]);
         }
+    }
+
+    public function isDoctrineOrmBridgeInstalled(): bool
+    {
+        return class_exists('Trollbus\DoctrineORMBridge\DoctrineORMBridge');
     }
 }
