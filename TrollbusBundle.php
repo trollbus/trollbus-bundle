@@ -22,6 +22,7 @@ use Trollbus\MessageBus\Logging\LogMiddleware;
 use Trollbus\MessageBus\MessageBus;
 use Trollbus\MessageBus\MessageId\CausationIdMiddleware;
 use Trollbus\MessageBus\MessageId\CorrelationIdMiddleware;
+use Trollbus\MessageBus\MessageId\MessageIdGenerator;
 use Trollbus\MessageBus\MessageId\MessageIdMiddleware;
 use Trollbus\MessageBus\MessageId\RandomMessageIdGenerator;
 use Trollbus\MessageBus\Transaction\WrapInTransactionMiddleware;
@@ -29,6 +30,7 @@ use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\DebugHandlerPass;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\DeferredEventPass;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\HandlerRegistryPass;
 use Trollbus\TrollbusBundle\DependencyInjection\MessageBusConfiguration;
+use Trollbus\TrollbusBundle\MessageId\SymfonyUidMessageIdGenerator;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
 
@@ -195,12 +197,18 @@ final class TrollbusBundle extends AbstractBundle
      */
     private function configureMessageId(NodeBuilder $config): void
     {
+        if ($this->isSymfonyUidInstalled()) {
+            $messageGeneratorId = SymfonyUidMessageIdGenerator::class;
+        } else {
+            $messageGeneratorId = RandomMessageIdGenerator::class;
+        }
+
         $config
             ->arrayNode('message_id')
                 ->canBeDisabled()
                 ->children()
                     ->scalarNode('generator')
-                        ->defaultValue(MessageBusConfiguration::DEFAULT_MESSAGE_ID_GENERATOR);
+                        ->defaultValue($messageGeneratorId);
     }
 
     /**
@@ -214,9 +222,14 @@ final class TrollbusBundle extends AbstractBundle
 
         $services->set(RandomMessageIdGenerator::class);
 
-        if (!$builder->has(MessageBusConfiguration::DEFAULT_MESSAGE_ID_GENERATOR)) {
-            $services->alias(MessageBusConfiguration::DEFAULT_MESSAGE_ID_GENERATOR, RandomMessageIdGenerator::class);
+        if ($this->isSymfonyUidInstalled()) {
+            $services->set(SymfonyUidMessageIdGenerator::class)
+                ->args([
+                    service('uuid.factory'),
+                ]);
         }
+
+        $services->alias(MessageIdGenerator::class, $config['message_id']['generator']);
 
         $services
             ->set(MessageIdMiddleware::class)
@@ -230,6 +243,11 @@ final class TrollbusBundle extends AbstractBundle
 
             ->set(CausationIdMiddleware::class)
                 ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => 800]);
+    }
+
+    private function isSymfonyUidInstalled(): bool
+    {
+        return class_exists('Symfony\Component\Uid\Uuid');
     }
 
     /**
