@@ -12,11 +12,6 @@ final class MessageBusConfiguration
     public const HANDLER_TAG_MESSAGE = 'message';
     public const HANDLER_TAG_MIDDLEWARES = 'middlewares';
     public const MIDDLEWARE_TAG = 'trollbus.middleware';
-    public const DEFAULT_MESSAGE_ID_GENERATOR = 'trollbus.message_id.default_generator';
-    public const DEFAULT_TRANSACTION_PROVIDER = 'trollbus.transaction.default_transaction_provider';
-    public const DEFAULT_ENTITY_FINDER = 'trollbus.entity_handler.default_entity_finder';
-    public const DEFAULT_ENTITY_SAVER = 'trollbus.entity_handler.default_entity_saver';
-    public const DEFAULT_CRITERIA_RESOLVER = 'trollbus.entity_handler.default_criteria_resolver';
 
     private static int $counter = 0;
 
