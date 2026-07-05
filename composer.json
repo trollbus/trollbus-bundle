@@ -31,10 +31,6 @@
         "trollbus/message": "self.version",
         "trollbus/message-bus": "self.version"
     },
-    "require-dev": {
-        "symfony/uid": "^6.4 || ^7.4 || ^8.0",
-        "trollbus/doctrine-orm-bridge": "self.version"
-    },
     "suggest": {
         "symfony/uid": "Generate message id",
         "trollbus/doctrine-orm-bridge": "Integration with Doctrine ORM"
