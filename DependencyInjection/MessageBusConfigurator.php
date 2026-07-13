@@ -37,7 +37,7 @@ final class MessageBusConfigurator
     public function handler(string $message, string $service, array $middlewares = []): self
     {
         if (\count($middlewares) > 0) {
-            $decoratedService = MessageBusConfiguration::nextHandlerService();
+            $decoratedService = MessageBusConfiguration::nextHandlerId();
             $this->di
                 ->services()
                 ->set($decoratedService, HandlerWithMiddlewares::class)
@@ -71,7 +71,7 @@ final class MessageBusConfigurator
         ?string $handlerId = null,
         array $middlewares = [],
     ): self {
-        $handlerService = MessageBusConfiguration::nextHandlerService();
+        $handlerService = MessageBusConfiguration::nextHandlerId();
         $this->di
             ->services()
             ->set($handlerService, CallableHandler::class)
@@ -101,7 +101,7 @@ final class MessageBusConfigurator
         ?string $handlerId = null,
         array $middlewares = [],
     ): self {
-        $handlerService = MessageBusConfiguration::nextHandlerService();
+        $handlerService = MessageBusConfiguration::nextHandlerId();
         $this->di
             ->services()
             ->set($handlerService, EntityHandler::class)
@@ -134,7 +134,7 @@ final class MessageBusConfigurator
         ?string $handlerId = null,
         array $middlewares = [],
     ): self {
-        $handlerService = MessageBusConfiguration::nextHandlerService();
+        $handlerService = MessageBusConfiguration::nextHandlerId();
         $this->di
             ->services()
             ->set($handlerService, EntityFactoryHandler::class)
