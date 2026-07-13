@@ -10,7 +10,6 @@ final class MessageBusConfiguration
     public const HANDLER_REGISTRY = 'trollbus.handler_registry';
     public const HANDLER_TAG = 'trollbus.handler';
     public const HANDLER_TAG_MESSAGE = 'message';
-    public const HANDLER_TAG_MIDDLEWARES = 'middlewares';
     public const MIDDLEWARE_TAG = 'trollbus.middleware';
 
     private static int $counter = 0;
