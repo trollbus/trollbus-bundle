@@ -160,14 +160,4 @@ final class MessageBusConfigurator
 
         return $this;
     }
-
-    /**
-     * @return non-empty-string
-     *
-     * @deprecated Use {@see MessageBusConfiguration::nextHandlerService()}, will be remove in `0.3.0`.
-     */
-    public static function nextHandlerService(): string
-    {
-        return MessageBusConfiguration::nextHandlerService();
-    }
 }
