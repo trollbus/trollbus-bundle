@@ -15,6 +15,9 @@ use Trollbus\MessageBus\Handler\CallableHandler;
 use Trollbus\MessageBus\Middleware\HandlerWithMiddlewares;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
+/**
+ * @deprecated Will be removed in 0.4.0. Use attributes to configure message handlers and middlewares.
+ */
 final class MessageBusConfigurator
 {
     public function __construct(
