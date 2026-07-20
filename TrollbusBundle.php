@@ -360,7 +360,8 @@ final class TrollbusBundle extends AbstractBundle
                         ->defaultTrue()
                         ->end()
                     ->booleanNode('flusher')
-                        ->defaultTrue();
+                        ->defaultTrue()
+                        ->end();
     }
 
     /**
@@ -404,7 +405,7 @@ final class TrollbusBundle extends AbstractBundle
                     service($config['doctrine_orm_bridge']['manager_registry']),
                     $config['doctrine_orm_bridge']['manager'],
                 ])
-                ->tag('trollbus.middleware', ['priority' => 300]);
+                ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => 300]);
         }
     }
 
