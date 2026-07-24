@@ -181,20 +181,6 @@ final class AttributePass implements CompilerPassInterface
             $refMethod->getAttributes(Attribute\WithMiddleware::class, \ReflectionAttribute::IS_INSTANCEOF),
         );
 
-        foreach ($withMiddlewareAttributes as $attribute) {
-            $middlewareServiceDefinition = $container->getDefinition($attribute->serviceId);
-            $middlewareServiceClass = self::getDefinitionClass($attribute->serviceId, $middlewareServiceDefinition);
-
-            if (!is_subclass_of($middlewareServiceClass->getName(), Middleware::class, true)) {
-                throw new LogicException(\sprintf(
-                    'Invalid class of middleware "%s". Expected "%s", actual "%s".',
-                    $attribute->serviceId,
-                    Middleware::class,
-                    $middlewareServiceClass->getName(),
-                ));
-            }
-        }
-
         return [$handlerAttribute, $withMiddlewareAttributes];
     }
 
