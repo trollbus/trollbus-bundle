@@ -87,7 +87,7 @@ final class DebugHandlerPass implements CompilerPassInterface
         }
 
         /** @psalm-suppress MixedAssignment */
-        $middlewaresArgument = $definition->getArgument(1);
+        $middlewaresArgument = $definition->getArgument('$middlewares');
 
         if ($middlewaresArgument instanceof TaggedIteratorArgument) {
             /** @var list<non-empty-string> */

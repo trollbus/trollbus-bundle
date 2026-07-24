@@ -80,7 +80,7 @@ final class DeferredEventPass implements CompilerPassInterface
 
         if (is_a($class, HandlerWithMiddlewares::class, true)) {
             /** @psalm-suppress MixedAssignment */
-            $innerArg = $definition->getArgument(0);
+            $innerArg = $definition->getArgument('$inner');
 
             if (null !== ($decoratedService = $definition->getDecoratedService())) {
                 $inner = $container->getDefinition((string) $decoratedService[0]);
