@@ -28,6 +28,7 @@ use Trollbus\MessageBus\MessageId\MessageIdGenerator;
 use Trollbus\MessageBus\MessageId\MessageIdMiddleware;
 use Trollbus\MessageBus\MessageId\RandomMessageIdGenerator;
 use Trollbus\MessageBus\Transaction\WrapInTransactionMiddleware;
+use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\AttributePass;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\DebugHandlerPass;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\DeferredEventPass;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\HandlerRegistryPass;
@@ -76,6 +77,7 @@ final class TrollbusBundle extends AbstractBundle
     #[\Override]
     public function build(ContainerBuilder $container): void
     {
+        $container->addCompilerPass(new AttributePass());
         $container->addCompilerPass(new HandlerRegistryPass());
         $container->addCompilerPass(new DeferredEventPass());
         $container->addCompilerPass(new DebugHandlerPass());
