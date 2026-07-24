@@ -12,8 +12,9 @@ use Symfony\Component\DependencyInjection\Reference;
 use Trollbus\Message\Message;
 use Trollbus\MessageBus\Handler\CallableHandler;
 use Trollbus\MessageBus\MessageContext;
+use Trollbus\MessageBus\Middleware\CallableMiddleware;
 use Trollbus\MessageBus\Middleware\HandlerWithMiddlewares;
-use Trollbus\MessageBus\Middleware\Middleware;
+use Trollbus\MessageBus\Middleware\Pipeline;
 use Trollbus\TrollbusBundle\Attribute;
 use Trollbus\TrollbusBundle\DependencyInjection\MessageBusConfiguration;
 
@@ -22,6 +23,7 @@ final class AttributePass implements CompilerPassInterface
     public function process(ContainerBuilder $container): void
     {
         $this->processHandlers($container);
+        $this->processMiddlewares($container);
     }
 
     private function processHandlers(ContainerBuilder $container): void
@@ -182,6 +184,90 @@ final class AttributePass implements CompilerPassInterface
         );
 
         return [$handlerAttribute, $withMiddlewareAttributes];
+    }
+
+    private function processMiddlewares(ContainerBuilder $container): void
+    {
+        foreach (self::iterateServices($container) as $serviceId => $definition) {
+            $refClass = self::getDefinitionClass($serviceId, $definition);
+
+            foreach (self::iterateClassPublicMethods($refClass, false) as $refMethod) {
+                $middlewareAttribute = self::extractMiddleware($refMethod);
+
+                if (null === $middlewareAttribute) {
+                    continue;
+                }
+
+                $middlewareServiceId = $middlewareAttribute->serviceId ?? MessageBusConfiguration::nextMiddlewareId();
+
+                if ($container->has($middlewareServiceId)) {
+                    throw new LogicException(\sprintf(
+                        'Can not register middleware "%s". Service "%s" already exists.',
+                        self::stringifyMethod($refMethod),
+                        $middlewareServiceId,
+                    ));
+                }
+
+                $definition = new Definition(
+                    class: CallableMiddleware::class,
+                    arguments: [
+                        '$callable' => [new Reference($serviceId), $refMethod->getName()],
+                    ],
+                );
+
+                if ($middlewareAttribute->global) {
+                    $definition->addTag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => $middlewareAttribute->priority]);
+                }
+
+                $container->setDefinition(
+                    id: $middlewareServiceId,
+                    definition: $definition,
+                );
+            }
+        }
+    }
+
+    private static function extractMiddleware(\ReflectionMethod $refMethod): ?Attribute\Middleware
+    {
+        $middlewareAttribute = ($refMethod->getAttributes(Attribute\Middleware::class)[0] ?? null)?->newInstance() ?? null;
+
+        if (null === $middlewareAttribute) {
+            return null;
+        }
+
+        if ($refMethod->getNumberOfParameters() > 2) {
+            throw new LogicException(\sprintf('Too many arguments of middleware method "%s".', self::stringifyMethod($refMethod)));
+        }
+
+        // Check first argument $pipeline
+        $pipelineArgumentType = ($refMethod->getParameters()[0] ?? null)?->getType();
+
+        if (!(
+            null === $pipelineArgumentType
+            || $pipelineArgumentType instanceof \ReflectionNamedType && Pipeline::class === $pipelineArgumentType->getName()
+        )) {
+            throw new LogicException(\sprintf(
+                'Invalid first argument of middleware method "%s". Expected "%s".',
+                self::stringifyMethod($refMethod),
+                Pipeline::class,
+            ));
+        }
+
+        // Check second argument $messageContext
+        $contextArgumentType = ($refMethod->getParameters()[1] ?? null)?->getType();
+
+        if (!(
+            null === $contextArgumentType
+            || $contextArgumentType instanceof \ReflectionNamedType && MessageContext::class === $contextArgumentType->getName()
+        )) {
+            throw new LogicException(\sprintf(
+                'Invalid second argument of middleware method "%s". Expected "%s".',
+                self::stringifyMethod($refMethod),
+                MessageContext::class,
+            ));
+        }
+
+        return $middlewareAttribute;
     }
 
     /**
