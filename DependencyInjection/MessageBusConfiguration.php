@@ -10,6 +10,9 @@ final class MessageBusConfiguration
     public const HANDLER_REGISTRY = 'trollbus.handler_registry';
     public const HANDLER_TAG = 'trollbus.handler';
     public const HANDLER_TAG_MESSAGE = 'message';
+    public const HANDLER_TAG_TYPE = 'handlerType';
+    public const HANDLER_TAG_CLASS = 'handlerClass';
+    public const HANDLER_TAG_METHOD = 'handlerMethod';
     public const MIDDLEWARE_TAG = 'trollbus.middleware';
 
     /**

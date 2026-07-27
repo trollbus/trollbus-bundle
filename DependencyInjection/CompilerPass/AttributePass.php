@@ -71,7 +71,14 @@ final class AttributePass implements CompilerPassInterface
                 }
 
                 foreach ($handlerAttribute->messages ?? [] as $message) {
-                    $definition->addTag(MessageBusConfiguration::HANDLER_TAG, [MessageBusConfiguration::HANDLER_TAG_MESSAGE => $message]);
+                    $definition->addTag(
+                        name: MessageBusConfiguration::HANDLER_TAG,
+                        attributes: [
+                            MessageBusConfiguration::HANDLER_TAG_MESSAGE => $message,
+                            MessageBusConfiguration::HANDLER_TAG_TYPE => 'callable',
+                            MessageBusConfiguration::HANDLER_TAG_CLASS => $refClass->getName(),
+                            MessageBusConfiguration::HANDLER_TAG_METHOD => $refMethod->getName(),
+                        ]);
                 }
 
                 $container->setDefinition(
