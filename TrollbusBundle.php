@@ -31,6 +31,7 @@ use Trollbus\MessageBus\Transaction\WrapInTransactionMiddleware;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\AttributePass;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\DebugHandlerPass;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\DeferredEventPass;
+use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\DoctrineEntityClassPass;
 use Trollbus\TrollbusBundle\DependencyInjection\CompilerPass\HandlerRegistryPass;
 use Trollbus\TrollbusBundle\DependencyInjection\MessageBusConfiguration;
 use Trollbus\TrollbusBundle\MessageId\SymfonyUidMessageIdGenerator;
@@ -78,6 +79,7 @@ final class TrollbusBundle extends AbstractBundle
     #[\Override]
     public function build(ContainerBuilder $container): void
     {
+        $container->addCompilerPass(new DoctrineEntityClassPass());
         $container->addCompilerPass(new AttributePass());
         $container->addCompilerPass(new HandlerRegistryPass());
         $container->addCompilerPass(new DeferredEventPass());
