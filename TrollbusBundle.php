@@ -59,7 +59,8 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_it
  *         enabled: bool,
  *         entity_finder: non-empty-string,
  *         entity_saver: non-empty-string,
- *         criteria_resolver: non-empty-string
+ *         criteria_resolver: non-empty-string,
+ *         classes: list<class-string>,
  *     },
  *     doctrine_orm_bridge?: array{
  *         enabled: bool,
@@ -114,7 +115,7 @@ final class TrollbusBundle extends AbstractBundle
         $this->loadLogger($config, $services);
         $this->loadMessageId($config, $services, $container);
         $this->loadTransaction($config, $services);
-        $this->loadEntityHandler($config, $services);
+        $this->loadEntityHandler($config, $services, $container);
         $this->loadDoctrineOrmBridge($config, $services, $container);
 
         $configurator
@@ -318,15 +319,39 @@ final class TrollbusBundle extends AbstractBundle
         }
 
         $node->children()->scalarNode('criteria_resolver')->defaultValue(PropertyCriteriaResolver::class);
+
+        $node->children()->arrayNode('classes')
+            ->stringPrototype()
+                ->validate()
+                    ->ifFalse(class_exists(...))
+                    ->thenInvalid('Invalid entity class %s.');
     }
 
     /**
      * @psalm-param Config $config
      */
-    private function loadEntityHandler(array $config, ServicesConfigurator $services): void
+    private function loadEntityHandler(array $config, ServicesConfigurator $services, ContainerBuilder $container): void
     {
+        $container->setParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_ENABLED, $config['entity_handler']['enabled']);
+
+        if (!$container->hasParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES)) {
+            $container->setParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES, []);
+        }
+
         if (false === $config['entity_handler']['enabled']) {
             return;
+        }
+
+        if ($container->hasParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES)) {
+            $container->setParameter(
+                MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES,
+                array_values(array_unique(array_merge(
+                    $container->getParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES),
+                    $config['entity_handler']['classes'],
+                ))),
+            );
+        } else {
+            $container->setParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES, $config['entity_handler']['classes']);
         }
 
         $services->set(PropertyCriteriaResolver::class);
@@ -369,11 +394,15 @@ final class TrollbusBundle extends AbstractBundle
     /**
      * @psalm-param Config $config
      */
-    private function loadDoctrineOrmBridge(array &$config, ServicesConfigurator $services, ContainerBuilder $builder): void
+    private function loadDoctrineOrmBridge(array $config, ServicesConfigurator $services, ContainerBuilder $container): void
     {
         if (false === isset($config['doctrine_orm_bridge'])) {
+            $container->setParameter(MessageBusConfiguration::PARAM_DOCTRINE_BRIDGE_ENABLED, false);
+
             return;
         }
+
+        $container->setParameter(MessageBusConfiguration::PARAM_DOCTRINE_BRIDGE_ENABLED, $config['doctrine_orm_bridge']['enabled']);
 
         if (false === $config['doctrine_orm_bridge']['enabled']) {
             return;
