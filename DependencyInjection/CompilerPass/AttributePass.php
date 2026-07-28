@@ -10,6 +10,11 @@ use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Exception\LogicException;
 use Symfony\Component\DependencyInjection\Reference;
 use Trollbus\Message\Message;
+use Trollbus\MessageBus\EntityHandler\CriteriaResolver;
+use Trollbus\MessageBus\EntityHandler\EntityFactoryHandler;
+use Trollbus\MessageBus\EntityHandler\EntityFinder;
+use Trollbus\MessageBus\EntityHandler\EntityHandler;
+use Trollbus\MessageBus\EntityHandler\EntitySaver;
 use Trollbus\MessageBus\Handler\CallableHandler;
 use Trollbus\MessageBus\MessageContext;
 use Trollbus\MessageBus\Middleware\CallableMiddleware;
@@ -23,6 +28,7 @@ final class AttributePass implements CompilerPassInterface
     public function process(ContainerBuilder $container): void
     {
         $this->processHandlers($container);
+        $this->processEntityHandlers($container);
         $this->processMiddlewares($container);
     }
 
@@ -32,61 +38,139 @@ final class AttributePass implements CompilerPassInterface
             $refClass = self::getDefinitionClass($serviceId, $definition);
 
             foreach (self::iterateClassPublicMethods($refClass, false) as $refMethod) {
-                [$handlerAttribute, $withMiddlewareAttributes] = self::extractHandler($refMethod, Attribute\Handler::class, $container);
-
-                if (null === $handlerAttribute || null === $withMiddlewareAttributes) {
-                    continue;
-                }
-
-                $handlerServiceId = $handlerAttribute->serviceId ?? MessageBusConfiguration::nextHandlerId();
-                $handlerId = $handlerAttribute->id ?? $handlerServiceId;
-
-                if ($container->has($handlerServiceId)) {
-                    throw new LogicException(\sprintf(
-                        'Can not register message handler "%s". Service "%s" already exists.',
-                        self::stringifyMethod($refMethod),
-                        $handlerServiceId,
-                    ));
-                }
-
-                $definition = new Definition(
-                    class: CallableHandler::class,
-                    arguments: [
-                        '$id' => $handlerId,
-                        '$handler' => [new Reference($serviceId), $refMethod->getName()],
-                    ],
-                );
-
-                if ([] !== $withMiddlewareAttributes) {
-                    $definition = new Definition(
-                        class: HandlerWithMiddlewares::class,
+                self::doProcessHandlers(
+                    container: $container,
+                    refMethod: $refMethod,
+                    handlerAttributeClass: Attribute\Handler::class,
+                    handlerType: 'callable',
+                    createDefinition: static fn(string $handlerId) => new Definition(
+                        class: CallableHandler::class,
                         arguments: [
-                            '$inner' => $definition,
-                            '$middlewares' => array_map(
-                                static fn(Attribute\WithMiddleware $a) => new Reference($a->serviceId),
-                                $withMiddlewareAttributes,
-                            ),
+                            '$id' => $handlerId,
+                            '$handler' => [new Reference($serviceId), $refMethod->getName()],
                         ],
-                    );
-                }
-
-                foreach ($handlerAttribute->messages ?? [] as $message) {
-                    $definition->addTag(
-                        name: MessageBusConfiguration::HANDLER_TAG,
-                        attributes: [
-                            MessageBusConfiguration::HANDLER_TAG_MESSAGE => $message,
-                            MessageBusConfiguration::HANDLER_TAG_TYPE => 'callable',
-                            MessageBusConfiguration::HANDLER_TAG_CLASS => $refClass->getName(),
-                            MessageBusConfiguration::HANDLER_TAG_METHOD => $refMethod->getName(),
-                        ]);
-                }
-
-                $container->setDefinition(
-                    id: $handlerServiceId,
-                    definition: $definition,
+                    ),
                 );
             }
         }
+    }
+
+    private function processEntityHandlers(ContainerBuilder $container): void
+    {
+        if (!$container->getParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_ENABLED)) {
+            return;
+        }
+
+        /** @var list<class-string> $classes */
+        $classes = $container->getParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES);
+
+        foreach ($classes as $class) {
+            $refClass = new \ReflectionClass($class);
+
+            foreach (self::iterateClassPublicMethods($refClass, true) as $refMethod) {
+                self::doProcessHandlers(
+                    container: $container,
+                    refMethod: $refMethod,
+                    handlerAttributeClass: Attribute\EntityFactoryHandler::class,
+                    handlerType: 'entityFactory',
+                    createDefinition: static fn(string $handlerId) => new Definition(
+                        class: EntityFactoryHandler::class,
+                        arguments: [
+                            '$id' => $handlerId,
+                            '$saver' => new Reference(EntitySaver::class),
+                            '$entityClass' => $refMethod->getDeclaringClass()->getName(),
+                            '$handlerMethod' => $refMethod->getName(),
+                        ],
+                    ),
+                );
+            }
+
+            foreach (self::iterateClassPublicMethods($refClass, false) as $refMethod) {
+                self::doProcessHandlers(
+                    container: $container,
+                    refMethod: $refMethod,
+                    handlerAttributeClass: Attribute\EntityHandler::class,
+                    handlerType: 'entity',
+                    createDefinition: static fn(string $handlerId, Attribute\EntityHandler $attribute) => new Definition(
+                        class: EntityHandler::class,
+                        arguments: [
+                            '$id' => $handlerId,
+                            '$finder' => new Reference(EntityFinder::class),
+                            '$criteriaResolver' => new Reference(CriteriaResolver::class),
+                            '$saver' => new Reference(EntitySaver::class),
+                            '$entityClass' => $refMethod->getDeclaringClass()->getName(),
+                            '$handlerMethod' => $refMethod->getName(),
+                            '$findBy' => $attribute->findBy,
+                            '$factoryMethod' => $attribute->factoryMethod,
+                        ],
+                    ),
+                );
+            }
+        }
+    }
+
+    /**
+     * @template T of Attribute\BaseHandler
+     *
+     * @param class-string<T> $handlerAttributeClass
+     * @param non-empty-string $handlerType
+     * @param callable(non-empty-string, T): Definition $createDefinition
+     */
+    private static function doProcessHandlers(
+        ContainerBuilder $container,
+        \ReflectionMethod $refMethod,
+        string $handlerAttributeClass,
+        string $handlerType,
+        callable $createDefinition,
+    ): void {
+        [$handlerAttribute, $withMiddlewareAttributes] = self::extractHandler($refMethod, $handlerAttributeClass, $container);
+
+        if (null === $handlerAttribute || null === $withMiddlewareAttributes) {
+            return;
+        }
+
+        $handlerServiceId = $handlerAttribute->serviceId ?? MessageBusConfiguration::nextHandlerId();
+        $handlerId = $handlerAttribute->id ?? $handlerServiceId;
+
+        if ($container->has($handlerServiceId)) {
+            throw new LogicException(\sprintf(
+                'Can not register message handler "%s". Service "%s" already exists.',
+                self::stringifyMethod($refMethod),
+                $handlerServiceId,
+            ));
+        }
+
+        $definition = $createDefinition($handlerId, $handlerAttribute);
+
+        if ([] !== $withMiddlewareAttributes) {
+            $definition = new Definition(
+                class: HandlerWithMiddlewares::class,
+                arguments: [
+                    '$inner' => $definition,
+                    '$middlewares' => array_map(
+                        static fn(Attribute\WithMiddleware $a) => new Reference($a->serviceId),
+                        $withMiddlewareAttributes,
+                    ),
+                ],
+            );
+        }
+
+        foreach ($handlerAttribute->messages ?? [] as $message) {
+            $definition->addTag(
+                name: MessageBusConfiguration::HANDLER_TAG,
+                attributes: [
+                    MessageBusConfiguration::HANDLER_TAG_MESSAGE => $message,
+                    MessageBusConfiguration::HANDLER_TAG_TYPE => $handlerType,
+                    MessageBusConfiguration::HANDLER_TAG_CLASS => $refMethod->getDeclaringClass()->getName(),
+                    MessageBusConfiguration::HANDLER_TAG_METHOD => $refMethod->getName(),
+                ],
+            );
+        }
+
+        $container->setDefinition(
+            id: $handlerServiceId,
+            definition: $definition,
+        );
     }
 
     /**
