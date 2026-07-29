@@ -141,19 +141,6 @@ final class AttributePass implements CompilerPassInterface
 
         $definition = $createDefinition($handlerId, $handlerAttribute);
 
-        if ([] !== $withMiddlewareAttributes) {
-            $definition = new Definition(
-                class: HandlerWithMiddlewares::class,
-                arguments: [
-                    '$inner' => $definition,
-                    '$middlewares' => array_map(
-                        static fn(Attribute\WithMiddleware $a) => new Reference($a->serviceId),
-                        $withMiddlewareAttributes,
-                    ),
-                ],
-            );
-        }
-
         foreach ($handlerAttribute->messages ?? [] as $message) {
             $definition->addTag(
                 name: MessageBusConfiguration::HANDLER_TAG,
@@ -170,6 +157,19 @@ final class AttributePass implements CompilerPassInterface
             id: $handlerServiceId,
             definition: $definition,
         );
+
+        if ([] !== $withMiddlewareAttributes) {
+            $decoratorServiceId = $handlerServiceId . '.with_middlewares';
+            $container->register(id: $decoratorServiceId, class: HandlerWithMiddlewares::class)
+                ->setDecoratedService(id: $handlerServiceId)
+                ->setArguments([
+                    '$inner' => new Reference('.inner'),
+                    '$middlewares' => array_map(
+                        static fn(Attribute\WithMiddleware $a) => new Reference($a->serviceId),
+                        $withMiddlewareAttributes,
+                    ),
+                ]);
+        }
     }
 
     /**
