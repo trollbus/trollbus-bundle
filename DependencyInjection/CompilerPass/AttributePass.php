@@ -90,19 +90,53 @@ final class AttributePass implements CompilerPassInterface
                     refMethod: $refMethod,
                     handlerAttributeClass: Attribute\EntityHandler::class,
                     handlerType: 'entity',
-                    createDefinition: static fn(string $handlerId, Attribute\EntityHandler $attribute) => new Definition(
-                        class: EntityHandler::class,
-                        arguments: [
-                            '$id' => $handlerId,
-                            '$finder' => new Reference(EntityFinder::class),
-                            '$criteriaResolver' => new Reference(CriteriaResolver::class),
-                            '$saver' => new Reference(EntitySaver::class),
-                            '$entityClass' => $refMethod->getDeclaringClass()->getName(),
-                            '$handlerMethod' => $refMethod->getName(),
-                            '$findBy' => $attribute->findBy,
-                            '$factoryMethod' => $attribute->factoryMethod,
-                        ],
-                    ),
+                    createDefinition: static function (string $handlerId, Attribute\EntityHandler $attribute) use ($refMethod): Definition {
+                        if (null !== $attribute->factoryMethod) {
+                            if (!$refMethod->getDeclaringClass()->hasMethod($attribute->factoryMethod)) {
+                                throw new LogicException(\sprintf(
+                                    'The factory method "%s" of entity handler "%s" not exists.',
+                                    $attribute->factoryMethod,
+                                    self::stringifyMethod($refMethod),
+                                ));
+                            }
+
+                            $refFactoryMethod = $refMethod->getDeclaringClass()->getMethod($attribute->factoryMethod);
+
+                            self::checkTypeOfHandlerMethod($refFactoryMethod);
+
+                            $factoryMessages = self::extractMessageTypesFromHandlerMethodTypeHint($refFactoryMethod);
+
+                            if (null !== $factoryMessages) {
+                                sort($factoryMessages);
+
+                                $attributeMessages = $attribute->messages;
+                                \assert(null !== $attributeMessages); // Attribute messages always specified
+                                sort($attributeMessages);
+
+                                if ($attributeMessages !== $factoryMessages) {
+                                    throw new LogicException(\sprintf(
+                                        'Message type of factory method "%s" is not compatible with entity handler "%s".',
+                                        self::stringifyMethod($refFactoryMethod),
+                                        self::stringifyMethod($refMethod),
+                                    ));
+                                }
+                            }
+                        }
+
+                        return new Definition(
+                            class: EntityHandler::class,
+                            arguments: [
+                                '$id' => $handlerId,
+                                '$finder' => new Reference(EntityFinder::class),
+                                '$criteriaResolver' => new Reference(CriteriaResolver::class),
+                                '$saver' => new Reference(EntitySaver::class),
+                                '$entityClass' => $refMethod->getDeclaringClass()->getName(),
+                                '$handlerMethod' => $refMethod->getName(),
+                                '$findBy' => $attribute->findBy,
+                                '$factoryMethod' => $attribute->factoryMethod,
+                            ],
+                        );
+                    },
                 );
             }
         }
@@ -188,16 +222,10 @@ final class AttributePass implements CompilerPassInterface
             return null;
         }
 
-        // Check signature of handler method
-        if ($refMethod->getNumberOfParameters() > 2) {
-            throw new LogicException(\sprintf('Too many arguments of handler method "%s".', self::stringifyMethod($refMethod)));
-        }
+        self::checkTypeOfHandlerMethod($refMethod);
+        $typeHintMessages = self::extractMessageTypesFromHandlerMethodTypeHint($refMethod);
 
-        // Check Message types
-        $messageArg = $refMethod->getParameters()[0] ?? null;
-        $messageArgType = $messageArg?->getType();
-
-        if (null === $handlerAttribute->messages && null === $messageArgType) {
+        if (null === $handlerAttribute->messages && null === $typeHintMessages) {
             throw new LogicException(\sprintf(
                 'Cannot determine message type for handler "%s". Please add a type-hint to the handler method 1-st parameter or specify the message type in the #[%s] attribute.',
                 self::stringifyMethod($refMethod),
@@ -205,7 +233,7 @@ final class AttributePass implements CompilerPassInterface
             ));
         }
 
-        if (null !== $handlerAttribute->messages && null !== $messageArgType) {
+        if (null !== $handlerAttribute->messages && null !== $typeHintMessages) {
             throw new LogicException(\sprintf(
                 'Ambiguous message type for handler "%s": declared in both #[%s] attribute and method parameter type-hint. The message type must be declared exactly once.',
                 self::stringifyMethod($refMethod),
@@ -213,22 +241,12 @@ final class AttributePass implements CompilerPassInterface
             ));
         }
 
-        if ($messageArgType instanceof \ReflectionNamedType) {
+        if (null !== $typeHintMessages) {
             /** @psalm-suppress InaccessibleProperty,PropertyTypeCoercion */
-            $handlerAttribute->messages = [$messageArgType->getName()];
-        } elseif ($messageArgType instanceof \ReflectionUnionType) {
-            /** @psalm-suppress InaccessibleProperty,PropertyTypeCoercion */
-            $handlerAttribute->messages = array_map(
-                static fn(\ReflectionNamedType $t) => $t->getName(),
-                $messageArgType->getTypes(),
-            );
-        } elseif ($messageArgType instanceof \ReflectionIntersectionType) {
-            throw new LogicException(\sprintf(
-                'Invalid message type in handler "%s": intersection types are not supported.',
-                self::stringifyMethod($refMethod),
-            ));
+            $handlerAttribute->messages = $typeHintMessages;
         }
 
+        /** @psalm-suppress TypeDoesNotContainNull */
         if (null === $handlerAttribute->messages) {
             throw new LogicException(\sprintf('Message type of handler "%s" not specified.', self::stringifyMethod($refMethod)));
         }
@@ -252,21 +270,6 @@ final class AttributePass implements CompilerPassInterface
             }
         }
 
-        // Check MessageContext type
-        $contextArg = $refMethod->getParameters()[1] ?? null;
-        $contextArgType = $contextArg?->getType();
-
-        if (!(
-            null === $contextArgType
-            || $contextArgType instanceof \ReflectionNamedType && MessageContext::class === $contextArgType->getName()
-        )) {
-            throw new LogicException(\sprintf(
-                'Invalid type of second parameter in "%s". Expected "%s".',
-                self::stringifyMethod($refMethod),
-                MessageContext::class,
-            ));
-        }
-
         // Get handler middlewares
         $withMiddlewareAttributes = array_map(
             static fn(\ReflectionAttribute $r) => $r->newInstance(),
@@ -274,6 +277,90 @@ final class AttributePass implements CompilerPassInterface
         );
 
         return [$handlerAttribute, $withMiddlewareAttributes];
+    }
+
+    private static function checkTypeOfHandlerMethod(\ReflectionMethod $refMethod): void
+    {
+        // Check signature of handler method
+        if ($refMethod->getNumberOfParameters() > 2) {
+            throw new LogicException(\sprintf('Too many arguments of handler method "%s".', self::stringifyMethod($refMethod)));
+        }
+
+        // Check Message types
+        self::extractMessageTypesFromHandlerMethodTypeHint($refMethod);
+
+        // Check MessageContext type
+        $contextArg = $refMethod->getParameters()[1] ?? null;
+
+        if (null !== $contextArg) {
+            $contextArgType = $contextArg->getType();
+
+            if (!(
+                $contextArgType instanceof \ReflectionNamedType && MessageContext::class === $contextArgType->getName()
+            )) {
+                throw new LogicException(\sprintf(
+                    'Invalid type of argument "$%s" in "%s". Expected "%s".',
+                    $contextArg->getName(),
+                    self::stringifyMethod($refMethod),
+                    MessageContext::class,
+                ));
+            }
+        }
+    }
+
+    /**
+     * @return non-empty-list<class-string<Message>>|null
+     */
+    private static function extractMessageTypesFromHandlerMethodTypeHint(\ReflectionMethod $refMethod): ?array
+    {
+        $messageArg = $refMethod->getParameters()[0] ?? null;
+
+        if (null === $messageArg) {
+            return null;
+        }
+
+        $messageArgType = $messageArg->getType();
+
+        if ($messageArgType instanceof \ReflectionNamedType) {
+            $messages = [$messageArgType->getName()];
+        } elseif ($messageArgType instanceof \ReflectionUnionType) {
+            $messages = array_map(
+                static fn(\ReflectionNamedType $t) => $t->getName(),
+                $messageArgType->getTypes(),
+            );
+        } elseif ($messageArgType instanceof \ReflectionIntersectionType) {
+            throw new LogicException(\sprintf(
+                'Invalid type of argument "$%s" in handler "%s": intersection types are not supported.',
+                $messageArg->getName(),
+                self::stringifyMethod($refMethod),
+            ));
+        } else {
+            return null;
+        }
+
+        foreach ($messages as $message) {
+            if (!class_exists($message)) {
+                throw new LogicException(\sprintf(
+                    'Invalid type of argument "$%s" in handler "%s": class "%s" not exists.',
+                    $messageArg->getName(),
+                    self::stringifyMethod($refMethod),
+                    $message,
+                ));
+            }
+
+            if (!is_subclass_of($message, Message::class, true)) {
+                throw new LogicException(\sprintf(
+                    'Invalid type of argument "$%s" in handler "%s": expected instance of "%s", actual "%s".',
+                    $messageArg->getName(),
+                    self::stringifyMethod($refMethod),
+                    Message::class,
+                    $message,
+                ));
+            }
+        }
+
+        /** @var non-empty-list<class-string<Message>> $messages */
+        return $messages;
     }
 
     private static function processMiddlewares(ContainerBuilder $container): void
