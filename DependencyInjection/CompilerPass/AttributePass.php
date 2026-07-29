@@ -27,12 +27,12 @@ final class AttributePass implements CompilerPassInterface
 {
     public function process(ContainerBuilder $container): void
     {
-        $this->processHandlers($container);
-        $this->processEntityHandlers($container);
-        $this->processMiddlewares($container);
+        self::processHandlers($container);
+        self::processEntityHandlers($container);
+        self::processMiddlewares($container);
     }
 
-    private function processHandlers(ContainerBuilder $container): void
+    private static function processHandlers(ContainerBuilder $container): void
     {
         foreach (self::iterateServices($container) as $serviceId => $definition) {
             $refClass = self::getDefinitionClass($serviceId, $definition);
@@ -55,7 +55,7 @@ final class AttributePass implements CompilerPassInterface
         }
     }
 
-    private function processEntityHandlers(ContainerBuilder $container): void
+    private static function processEntityHandlers(ContainerBuilder $container): void
     {
         if (!MessageBusConfiguration::getParamEntityHandlerEnabled($container)) {
             return;
@@ -276,7 +276,7 @@ final class AttributePass implements CompilerPassInterface
         return [$handlerAttribute, $withMiddlewareAttributes];
     }
 
-    private function processMiddlewares(ContainerBuilder $container): void
+    private static function processMiddlewares(ContainerBuilder $container): void
     {
         foreach (self::iterateServices($container) as $serviceId => $definition) {
             $refClass = self::getDefinitionClass($serviceId, $definition);
