@@ -13,6 +13,12 @@ use Trollbus\TrollbusBundle\DependencyInjection\MessageBusConfiguration;
 
 /**
  * Automatic add Doctrine ORM entity classes if Doctrie ORM Bridge is enabled.
+ *
+ * @psalm-type Mapping = array{
+ *     type: string,
+ *     dir: string,
+ *     prefix: string
+ * }
  */
 final class DoctrineEntityClassPass implements CompilerPassInterface
 {
@@ -25,7 +31,7 @@ final class DoctrineEntityClassPass implements CompilerPassInterface
         $mappingDriver = new MappingDriverChain();
 
         foreach (self::iterateDoctrineMappingsConfig($container) as $mapping) {
-            $dir = $container->getParameterBag()->resolveValue($mapping['dir']);
+            $dir = (string) $container->getParameterBag()->resolveValue($mapping['dir']);
 
             if ('attribute' === $mapping['type']) {
                 $mappingDriver->addDriver(new AttributeDriver([$dir]), $mapping['prefix']);
@@ -43,13 +49,18 @@ final class DoctrineEntityClassPass implements CompilerPassInterface
     private static function iterateDoctrineMappingsConfig(ContainerBuilder $container): iterable
     {
         foreach ($container->getExtensionConfig('doctrine') as $config) {
+            /** @var Mapping $mapping */
             foreach ((array) ($config['orm']['mappings'] ?? []) as $mapping) {
                 yield $mapping;
             }
 
+            /** @psalm-suppress MixedAssignment */
             foreach ((array) ($config['orm']['entity_managers'] ?? []) as $managerConfig) {
-                foreach ((array) ($managerConfig['mappings'] ?? []) as $mapping) {
-                    yield $mapping;
+                if (isset($managerConfig['mappings']) && \is_array($managerConfig['mappings'])) {
+                    /** @var Mapping $mapping */
+                    foreach ($managerConfig['mappings'] ?? [] as $mapping) {
+                        yield $mapping;
+                    }
                 }
             }
 
