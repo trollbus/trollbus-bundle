@@ -334,26 +334,11 @@ final class TrollbusBundle extends AbstractBundle
      */
     private function loadEntityHandler(array $config, ServicesConfigurator $services, ContainerBuilder $container): void
     {
-        $container->setParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_ENABLED, $config['entity_handler']['enabled']);
-
-        if (!$container->hasParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES)) {
-            $container->setParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES, []);
-        }
+        MessageBusConfiguration::setParamEntityHandlerEnabled($container, $config['entity_handler']['enabled']);
+        MessageBusConfiguration::addParamEntityHandlerClasses($container, $config['entity_handler']['classes']);
 
         if (false === $config['entity_handler']['enabled']) {
             return;
-        }
-
-        if ($container->hasParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES)) {
-            $container->setParameter(
-                MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES,
-                array_values(array_unique(array_merge(
-                    $container->getParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES),
-                    $config['entity_handler']['classes'],
-                ))),
-            );
-        } else {
-            $container->setParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES, $config['entity_handler']['classes']);
         }
 
         $services->set(PropertyCriteriaResolver::class);
@@ -399,12 +384,12 @@ final class TrollbusBundle extends AbstractBundle
     private function loadDoctrineOrmBridge(array $config, ServicesConfigurator $services, ContainerBuilder $container): void
     {
         if (false === isset($config['doctrine_orm_bridge'])) {
-            $container->setParameter(MessageBusConfiguration::PARAM_DOCTRINE_BRIDGE_ENABLED, false);
+            MessageBusConfiguration::setParamDoctrineBridgeEnabled($container, false);
 
             return;
         }
 
-        $container->setParameter(MessageBusConfiguration::PARAM_DOCTRINE_BRIDGE_ENABLED, $config['doctrine_orm_bridge']['enabled']);
+        MessageBusConfiguration::setParamDoctrineBridgeEnabled($container, $config['doctrine_orm_bridge']['enabled']);
 
         if (false === $config['doctrine_orm_bridge']['enabled']) {
             return;

@@ -9,7 +9,6 @@ use Doctrine\ORM\Mapping\Driver\SimplifiedXmlDriver;
 use Doctrine\Persistence\Mapping\Driver\MappingDriverChain;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Exception\ParameterNotFoundException;
 use Trollbus\TrollbusBundle\DependencyInjection\MessageBusConfiguration;
 
 /**
@@ -19,13 +18,7 @@ final class DoctrineEntityClassPass implements CompilerPassInterface
 {
     public function process(ContainerBuilder $container): void
     {
-        try {
-            $isDoctrineOrmBridgeEnabled = (bool) $container->getParameter(MessageBusConfiguration::PARAM_DOCTRINE_BRIDGE_ENABLED);
-        } catch (ParameterNotFoundException) {
-            $isDoctrineOrmBridgeEnabled = false;
-        }
-
-        if (!$isDoctrineOrmBridgeEnabled) {
+        if (!MessageBusConfiguration::getParamDoctrineBridgeEnabled($container)) {
             return;
         }
 
@@ -41,19 +34,7 @@ final class DoctrineEntityClassPass implements CompilerPassInterface
             }
         }
 
-        $classes = $mappingDriver->getAllClassNames();
-
-        if ($container->hasParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES)) {
-            $container->setParameter(
-                MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES,
-                array_values(array_unique(array_merge(
-                    $container->getParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES),
-                    $classes,
-                ))),
-            );
-        } else {
-            $container->setParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES, $classes);
-        }
+        MessageBusConfiguration::addParamEntityHandlerClasses($container, $mappingDriver->getAllClassNames());
     }
 
     /**

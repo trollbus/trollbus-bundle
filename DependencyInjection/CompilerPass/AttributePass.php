@@ -57,12 +57,11 @@ final class AttributePass implements CompilerPassInterface
 
     private function processEntityHandlers(ContainerBuilder $container): void
     {
-        if (!$container->getParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_ENABLED)) {
+        if (!MessageBusConfiguration::getParamEntityHandlerEnabled($container)) {
             return;
         }
 
-        /** @var list<class-string> $classes */
-        $classes = $container->getParameter(MessageBusConfiguration::PARAM_ENTITY_HANDLER_CLASSES);
+        $classes = MessageBusConfiguration::getParamEntityHandlerClasses($container);
 
         foreach ($classes as $class) {
             $refClass = new \ReflectionClass($class);
