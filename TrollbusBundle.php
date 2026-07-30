@@ -323,10 +323,15 @@ final class TrollbusBundle extends AbstractBundle
         $node->children()->scalarNode('criteria_resolver')->defaultValue(PropertyCriteriaResolver::class);
 
         $node->children()->arrayNode('classes')
-            ->stringPrototype()
+            // For compatibility with Symfony 6.4
+            ->scalarPrototype()
                 ->validate()
-                    ->ifFalse(class_exists(...))
+                    ->ifTrue(static fn(mixed $value) => !(\is_string($value) && class_exists($value)))
                     ->thenInvalid('Invalid entity class %s.');
+        //  ->stringPrototype()
+        //      ->validate()
+        //          ->ifFalse(class_exists(...))
+        //          ->thenInvalid('Invalid entity class %s.');
     }
 
     /**
