@@ -43,8 +43,8 @@ final class MessageBusConfigurator
                 ->set($decoratedService, HandlerWithMiddlewares::class)
                     ->decorate($service)
                     ->args([
-                        service('.inner'),
-                        array_map(static fn(string $m) => service($m), $middlewares),
+                        '$inner' => service('.inner'),
+                        '$middlewares' => array_map(static fn(string $m) => service($m), $middlewares),
                     ]);
             $service = $decoratedService;
         }
@@ -76,8 +76,8 @@ final class MessageBusConfigurator
             ->services()
             ->set($handlerService, CallableHandler::class)
                 ->args([
-                    $handlerId ?? $handlerService,
-                    [service($service), $method],
+                    '$id' => $handlerId ?? $handlerService,
+                    '$handler' => [service($service), $method],
                 ]);
 
         return $this->handler($message, $handlerService, $middlewares);
@@ -106,14 +106,14 @@ final class MessageBusConfigurator
             ->services()
             ->set($handlerService, EntityHandler::class)
                 ->args([
-                    $handlerId ?? $handlerService,
-                    service(EntityFinder::class),
-                    service(CriteriaResolver::class),
-                    service(EntitySaver::class),
-                    $entityClass,
-                    $handlerMethod,
-                    $findBy,
-                    $factoryMethod,
+                    '$id' => $handlerId ?? $handlerService,
+                    '$finder' => service(EntityFinder::class),
+                    '$criteriaResolver' => service(CriteriaResolver::class),
+                    '$saver' => service(EntitySaver::class),
+                    '$entityClass' => $entityClass,
+                    '$handlerMethod' => $handlerMethod,
+                    '$findBy' => $findBy,
+                    '$factoryMethod' => $factoryMethod,
                 ]);
 
         return $this->handler($message, $handlerService, $middlewares);
@@ -139,10 +139,10 @@ final class MessageBusConfigurator
             ->services()
             ->set($handlerService, EntityFactoryHandler::class)
                 ->args([
-                    $handlerId ?? $handlerService,
-                    service(EntitySaver::class),
-                    $entityClass,
-                    $handlerMethod,
+                    '$id' => $handlerId ?? $handlerService,
+                    '$saver' => service(EntitySaver::class),
+                    '$entityClass' => $entityClass,
+                    '$handlerMethod' => $handlerMethod,
                 ]);
 
         return $this->handler($message, $handlerService, $middlewares);
