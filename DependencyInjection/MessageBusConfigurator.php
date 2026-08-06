@@ -36,25 +36,7 @@ final class MessageBusConfigurator
      */
     public function handler(string $message, string $service, array $middlewares = []): self
     {
-        if (\count($middlewares) > 0) {
-            $decoratedService = MessageBusConfiguration::nextHandlerId();
-            $this->di
-                ->services()
-                ->set($decoratedService, HandlerWithMiddlewares::class)
-                    ->decorate($service)
-                    ->args([
-                        '$inner' => service('.inner'),
-                        '$middlewares' => array_map(static fn(string $m) => service($m), $middlewares),
-                    ]);
-            $service = $decoratedService;
-        }
-
-        $this->di
-            ->services()
-            ->get($service)
-                ->tag(MessageBusConfiguration::HANDLER_TAG, [MessageBusConfiguration::HANDLER_TAG_MESSAGE => $message]);
-
-        return $this;
+        return $this->doHandler($message, $service, $middlewares);
     }
 
     /**
@@ -80,7 +62,22 @@ final class MessageBusConfigurator
                     '$handler' => [service($service), $method],
                 ]);
 
-        return $this->handler($message, $handlerService, $middlewares);
+        $tagAttributes = [
+            MessageBusConfiguration::HANDLER_TAG_TYPE => 'callable',
+        ];
+
+        // Callable service class can be determinate only if service id equals service class.
+        if (class_exists($service)) {
+            $tagAttributes[MessageBusConfiguration::HANDLER_TAG_CLASS] = $service;
+            $tagAttributes[MessageBusConfiguration::HANDLER_TAG_METHOD] = $method;
+        }
+
+        return $this->doHandler(
+            message: $message,
+            service: $handlerService,
+            middlewares: $middlewares,
+            tagAttributes: $tagAttributes,
+        );
     }
 
     /**
@@ -116,7 +113,16 @@ final class MessageBusConfigurator
                     '$factoryMethod' => $factoryMethod,
                 ]);
 
-        return $this->handler($message, $handlerService, $middlewares);
+        return $this->doHandler(
+            message: $message,
+            service: $handlerService,
+            middlewares: $middlewares,
+            tagAttributes: [
+                MessageBusConfiguration::HANDLER_TAG_TYPE => 'entity',
+                MessageBusConfiguration::HANDLER_TAG_CLASS => $entityClass,
+                MessageBusConfiguration::HANDLER_TAG_METHOD => $handlerMethod,
+            ],
+        );
     }
 
     /**
@@ -145,7 +151,16 @@ final class MessageBusConfigurator
                     '$handlerMethod' => $handlerMethod,
                 ]);
 
-        return $this->handler($message, $handlerService, $middlewares);
+        return $this->doHandler(
+            message: $message,
+            service: $handlerService,
+            middlewares: $middlewares,
+            tagAttributes: [
+                MessageBusConfiguration::HANDLER_TAG_TYPE => 'entityFactory',
+                MessageBusConfiguration::HANDLER_TAG_CLASS => $entityClass,
+                MessageBusConfiguration::HANDLER_TAG_METHOD => $handlerMethod,
+            ],
+        );
     }
 
     /**
@@ -157,6 +172,32 @@ final class MessageBusConfigurator
             ->services()
             ->get($service)
                 ->tag(MessageBusConfiguration::MIDDLEWARE_TAG, ['priority' => $priority]);
+
+        return $this;
+    }
+
+    private function doHandler(string $message, string $service, array $middlewares = [], array $tagAttributes = []): self
+    {
+        if (\count($middlewares) > 0) {
+            $decoratedService = MessageBusConfiguration::nextHandlerId();
+            $this->di
+                ->services()
+                ->set($decoratedService, HandlerWithMiddlewares::class)
+                ->decorate($service)
+                ->args([
+                    '$inner' => service('.inner'),
+                    '$middlewares' => array_map(static fn(string $m) => service($m), $middlewares),
+                ]);
+            $service = $decoratedService;
+        }
+
+        $this->di
+            ->services()
+            ->get($service)
+            ->tag(
+                name: MessageBusConfiguration::HANDLER_TAG,
+                attributes: [MessageBusConfiguration::HANDLER_TAG_MESSAGE => $message] + $tagAttributes,
+            );
 
         return $this;
     }
