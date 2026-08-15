@@ -6,6 +6,8 @@ declare(strict_types=1);
 
 namespace Trollbus\TrollbusBundle\Attribute;
 
+use Trollbus\MessageBus\Middleware\Middleware;
+
 /**
  * @psalm-suppress ClassMustBeFinal
  */
@@ -13,9 +15,9 @@ namespace Trollbus\TrollbusBundle\Attribute;
 class WithMiddleware
 {
     /**
-     * @param non-empty-string $serviceId
+     * @param non-empty-string|Middleware $middleware
      */
     public function __construct(
-        public readonly string $serviceId,
+        public readonly string|Middleware $middleware,
     ) {}
 }

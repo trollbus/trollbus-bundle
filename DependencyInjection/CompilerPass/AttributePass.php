@@ -19,9 +19,11 @@ use Trollbus\MessageBus\Handler\CallableHandler;
 use Trollbus\MessageBus\MessageContext;
 use Trollbus\MessageBus\Middleware\CallableMiddleware;
 use Trollbus\MessageBus\Middleware\HandlerWithMiddlewares;
+use Trollbus\MessageBus\Middleware\Middleware;
 use Trollbus\MessageBus\Middleware\Pipeline;
 use Trollbus\TrollbusBundle\Attribute;
 use Trollbus\TrollbusBundle\DependencyInjection\MessageBusConfiguration;
+use Trollbus\TrollbusBundle\Middleware\SerializedMiddleware;
 
 final class AttributePass implements CompilerPassInterface
 {
@@ -199,7 +201,18 @@ final class AttributePass implements CompilerPassInterface
                 ->setArguments([
                     '$inner' => new Reference('.inner'),
                     '$middlewares' => array_map(
-                        static fn(Attribute\WithMiddleware $a) => new Reference($a->serviceId),
+                        static function (Attribute\WithMiddleware $a) {
+                            if ($a->middleware instanceof Middleware) {
+                                return new Definition(
+                                    class: SerializedMiddleware::class,
+                                    arguments: [
+                                        '$serializedMiddleware' => SerializedMiddleware::serializeMiddleware($a->middleware),
+                                    ],
+                                );
+                            }
+
+                            return new Reference($a->middleware);
+                        },
                         $withMiddlewareAttributes,
                     ),
                 ]);
