@@ -79,11 +79,11 @@ final class TrollbusBundle extends AbstractBundle
     #[\Override]
     public function build(ContainerBuilder $container): void
     {
-        $container->addCompilerPass(new DoctrineEntityClassPass());
-        $container->addCompilerPass(new AttributePass());
-        $container->addCompilerPass(new HandlerRegistryPass());
-        $container->addCompilerPass(new DeferredEventPass());
-        $container->addCompilerPass(new DebugHandlerPass());
+        $container->addCompilerPass(new DoctrineEntityClassPass(), priority: 200);
+        $container->addCompilerPass(new AttributePass(), priority: 100);
+        $container->addCompilerPass(new HandlerRegistryPass(), priority: -1_000);
+        $container->addCompilerPass(new DeferredEventPass(), priority: -1_100);
+        $container->addCompilerPass(new DebugHandlerPass(), priority: -2_000);
     }
 
     /**
